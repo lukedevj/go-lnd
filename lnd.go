@@ -1,4 +1,4 @@
-package main
+package lnd
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -19,49 +20,41 @@ type Client struct {
 	Macaroon string
 }
 
-func (c Client) parseUrl(path string) string {
-	if !strings.HasPrefix(c.Host, "https") {
-		return "https://" + c.Host + "/" + path
-	}
-	return c.Host + "/" + path
-}
-
-func (c Client) tlsCertRead() []byte {
-	file, err := ioutil.ReadFile(c.Cert)
-	if err != nil {
-		panic(err)
-	}
-	return file
-}
-
-func (c Client) macaroonRead() string {
-	file, err := ioutil.ReadFile(c.Macaroon)
-	if err != nil {
-		panic(err)
-	}
-	return hex.EncodeToString(file)
-}
-
 func (c Client) Call(method string, path string, body map[string]interface{}) (gjson.Result, error) {
 	buf := new(bytes.Buffer)
 	err := json.NewEncoder(buf).Encode(body)
 	if err != nil {
-		panic(err)
+		return gjson.Result{}, err
 	}
 
-	url := c.parseUrl(path)
+	url := c.Host
+	if !strings.HasPrefix(c.Host, "https") {
+		url = "https://" + url + "/"
+	}
+	url += path
+
 	req, err := http.NewRequest(method, url, buf)
-	req.Header.Set("Grpc-Metadata-macaroon", c.macaroonRead())
 	if err != nil {
-		panic(err)
+		return gjson.Result{}, err
 	}
 
-	cert_pool := x509.NewCertPool()
-	cert_pool.AppendCertsFromPEM(c.tlsCertRead())
+	file, err := ioutil.ReadFile(c.Macaroon)
+	if err != nil {
+		return gjson.Result{}, err
+	}
+	req.Header.Set("Grpc-Metadata-macaroon", hex.EncodeToString(file))
+	file, err = ioutil.ReadFile(c.Cert)
+	if err != nil {
+		return gjson.Result{}, err
+	}
+
+	tls_cert := x509.NewCertPool()
+	tls_cert.AppendCertsFromPEM(file)
+
 	http_client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				RootCAs: cert_pool,
+				RootCAs: tls_cert,
 			},
 		},
 	}
@@ -72,6 +65,7 @@ func (c Client) Call(method string, path string, body map[string]interface{}) (g
 	defer res.Body.Close()
 
 	b, err := ioutil.ReadAll(res.Body)
+	fmt.Println(string(b))
 	if err != nil {
 		return gjson.Result{}, err
 	}
