@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-    c := Client{
+    c := lnd.Client{
       Host:     "127.0.0.1:8080",
       Cert:     "/home/dev/.lnd/tls.cert",
       Macaroon: "/home/dev/.lnd/chain/bitcoin/regtest/invoices.macaroon",
