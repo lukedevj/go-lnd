@@ -19,7 +19,7 @@ func main() {
       Cert:     "/home/dev/.lnd/tls.cert",
       Macaroon: "/home/dev/.lnd/chain/bitcoin/regtest/invoices.macaroon",
     }
-    d := map[string]string{}{"memo": "Testing", "value": 20}
+    d := map[string]interface{}{"memo": "Testing", "value": 20}
     // Create new invoice
     i, _ := c.Call("POST", "v1/invoices", d)
     fmt.Println(i)
