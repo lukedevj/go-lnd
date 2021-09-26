@@ -44,11 +44,12 @@ func (c Client) getMacaroon() string {
 
 func (c Client) Call(method string, path string, body map[string]interface{}) (gjson.Result, error) {
 	buf := new(bytes.Buffer)
-	err := json.NewEncoder(buf).Encode(body)
-	if err != nil {
-		return gjson.Result{}, err
+	if body != nil {
+		err := json.NewEncoder(buf).Encode(body)
+		if err != nil {
+			return gjson.Result, err
+		}
 	}
-
 	req, err := http.NewRequest(method, c.baseURL()+"/"+path, buf)
 	if err != nil {
 		return gjson.Result{}, err
