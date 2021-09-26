@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -20,6 +19,29 @@ type Client struct {
 	Macaroon string
 }
 
+func (c Client) baseURL() string {
+	if strings.HasPrefix(c.Host, "https") {
+		return c.Host
+	}
+	return "https://" + c.Host
+}
+
+func (c Client) getTlsCert() []byte {
+	file, err := ioutil.ReadFile(c.Cert)
+	if err != nil {
+		panic(err)
+	}
+	return file
+}
+
+func (c Client) getMacaroon() string {
+	file, err := ioutil.ReadFile(c.Macaroon)
+	if err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(file)
+}
+
 func (c Client) Call(method string, path string, body map[string]interface{}) (gjson.Result, error) {
 	buf := new(bytes.Buffer)
 	err := json.NewEncoder(buf).Encode(body)
@@ -27,47 +49,32 @@ func (c Client) Call(method string, path string, body map[string]interface{}) (g
 		return gjson.Result{}, err
 	}
 
-	url := c.Host
-	if !strings.HasPrefix(c.Host, "https") {
-		url = "https://" + url + "/"
-	}
-	url += path
-
-	req, err := http.NewRequest(method, url, buf)
+	req, err := http.NewRequest(method, c.baseURL()+"/"+path, buf)
 	if err != nil {
 		return gjson.Result{}, err
 	}
+	req.Header.Set("Grpc-Metadata-macaroon", c.getMacaroon())
 
-	file, err := ioutil.ReadFile(c.Macaroon)
-	if err != nil {
-		return gjson.Result{}, err
-	}
-	req.Header.Set("Grpc-Metadata-macaroon", hex.EncodeToString(file))
-	file, err = ioutil.ReadFile(c.Cert)
-	if err != nil {
-		return gjson.Result{}, err
-	}
+	tlscert := x509.NewCertPool()
+	tlscert.AppendCertsFromPEM(c.getTlsCert())
 
-	tls_cert := x509.NewCertPool()
-	tls_cert.AppendCertsFromPEM(file)
-
-	http_client := &http.Client{
+	tls_client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				RootCAs: tls_cert,
+				RootCAs: tlscert,
 			},
 		},
 	}
-	res, err := http_client.Do(req)
+	res, err := tls_client.Do(req)
 	if err != nil {
 		return gjson.Result{}, err
 	}
 	defer res.Body.Close()
 
 	b, err := ioutil.ReadAll(res.Body)
-	fmt.Println(string(b))
 	if err != nil {
 		return gjson.Result{}, err
 	}
 	return gjson.ParseBytes(b), nil
+
 }
