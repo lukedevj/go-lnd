@@ -47,7 +47,7 @@ func (c Client) Call(method string, path string, body map[string]interface{}) (g
 	if body != nil {
 		err := json.NewEncoder(buf).Encode(body)
 		if err != nil {
-			return gjson.Result, err
+			return gjson.Result{}, err
 		}
 	}
 	req, err := http.NewRequest(method, c.baseURL()+"/"+path, buf)
