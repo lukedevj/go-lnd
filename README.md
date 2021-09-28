@@ -15,14 +15,13 @@ import (
 )
 
 func main() {
-    c := lnd.Client{
+    client := lnd.Client{
       Host:     "127.0.0.1:8080",
       Cert:     "/home/dev/.lnd/tls.cert",
       Macaroon: "/home/dev/.lnd/chain/bitcoin/mainnet/invoices.macaroon",
     }
-    d := map[string]interface{}{"memo": "Testing", "value": 20}
-    // Create new invoice
-    i, _ := c.Call("POST", "v1/invoices", d)
-    fmt.Println(i)
+    invoice, _ := client.CreateInvoice(1, "Hello, word")
+    fmt.Println(invoice)
+    
 }
 ```
