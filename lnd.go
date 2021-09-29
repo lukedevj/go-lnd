@@ -14,9 +14,9 @@ import (
 )
 
 type Client struct {
-	Host     string
-	Cert     string
-	Macaroon string
+	Host     string `json:"Host"`
+	Cert     string	`json:"Cert"`
+	Macaroon string `json:"Macaroon"`
 }
 
 func (c Client) BaseURL() string {
@@ -24,6 +24,19 @@ func (c Client) BaseURL() string {
 		return c.Host
 	}
 	return "https://" + c.Host
+}
+
+func (c *Client) ConfigFile(path string) {
+	file, err := ioutil.ReadFile(path)
+	if err != nil {
+		panic(err)
+	}
+	var client Client
+	json.Unmarshal(file, &client)
+
+	c.Host = client.Host
+	c.Cert = client.Cert
+	c.Macaroon = client.Macaroon
 }
 
 func (c Client) GetTlsCert() []byte {
